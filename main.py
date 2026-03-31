@@ -4,6 +4,7 @@ Crucible Upload UI — Flask backend
 import logging
 import queue
 import threading
+import webbrowser
 import tkinter as tk
 from tkinter import filedialog
 
@@ -232,5 +233,6 @@ if __name__ == "__main__":
         target=lambda: app.run(debug=False, port=5000), daemon=True
     )
     flask_thread.start()
+    webbrowser.open("http://localhost:5000")    
     _tk_root.after(50, _check_browse_queue)
     _tk_root.mainloop()
