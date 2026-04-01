@@ -74,7 +74,11 @@ uv run python main.py
 
 ### Additional Details
 - instrument_conf.py allows configuration of instrument specific details that may be helpful (currently very limited):
-    - `DEFAULT_BROWSE_DIR` will set the default directory 
+    - `DEFAULT_BROWSE_DIR` will set the default directory
+    - `IS_SESSION` should be set to True if you have a folder of data you want to upload as a dataset. This will create a `parent dataset` for the session as well as datasets for each qualifying file within the directory. The individual file based datasets will be linked to the `parent dataset` as children.
+    - `INSTRUMENTS` is a list of the instruments that will appear as choices in a dropdown in the UI
+    - `DEFAULT_INSTRUMENT` will be the pre-selected instrument value.
+    - `PRINT_BARCODE_ENABLED` can be set to True or False. If True a button will display in the UI to allow the user to print the barcode for the sample. Barcode formatting and printer settings are currently not configurable. The app will expect a Brother pt-d610bt label printer to be connected to the printer with 0.94" tape. This setup is also currently limited to windows os. 
 - To prevent accidental uploads of system-level directories, the selected folder must be at least 3 levels deep from the filesystem root (e.g. D:\Users\data\session). 
 
 
