@@ -223,6 +223,18 @@
       if (data.default) {
         sel.value = data.default;
       }
+
+      // Auto-populate from query params (e.g. ?user_email=xx&project=xx)
+      const params = new URLSearchParams(window.location.search);
+      const prefillEmail = params.get("user_email");
+      const prefillProject = params.get("project");
+      if (prefillEmail) {
+        document.getElementById("email").value = prefillEmail;
+        await lookupUser();
+        if (prefillProject && state.projects.includes(prefillProject)) {
+          document.getElementById("project").value = prefillProject;
+        }
+      }
     }
 
     // -------------------------------------------------------------------------
