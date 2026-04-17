@@ -13,4 +13,4 @@ if __name__ == "__main__":
     insitu_deploy = insitu_upload.to_deployment(name="insitu-upload")
     tem_deploy = tem_session_upload.to_deployment(name="tem-session-upload")
     child_deploy = upload_child_dataset.to_deployment(name="upload-child-dataset")
-    serve(insitu_deploy, tem_deploy, child_deploy)
+    serve(insitu_deploy, tem_deploy, child_deploy, limit=10)
