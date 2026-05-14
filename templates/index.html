@@ -144,8 +144,32 @@
           <button class="btn btn-outline-secondary" onclick="browseFolder()">Browse…</button>
         </div>
         <label class="form-label fw-semibold">Comments</label>
-        <textarea id="comments" class="form-control" rows="3"
-                  placeholder="Any notes about this session (optional)..."></textarea>
+        <div class="d-flex gap-2">
+          <button id="btn-voice" class="btn btn-outline-secondary align-self-start" type="button"
+                  onclick="toggleVoice()" title="Voice input (click to start/stop)">
+            <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z"/>
+              <path d="M10 3a2 2 0 1 1-4 0v5a2 2 0 1 1 4 0V3zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3z"/>
+            </svg>
+          </button>
+          <textarea id="comments" class="form-control" rows="3"
+                    placeholder="Any notes about this session (optional)..."></textarea>
+        </div>
+        <small id="voice-status" class="form-text text-muted d-none">Listening...</small>
+
+        <label class="form-label fw-semibold mt-3">Keywords</label>
+        <div class="d-flex gap-2 align-items-start">
+          <button class="btn btn-outline-primary btn-sm" type="button" onclick="extractKeywords()" id="btn-extract-kw">
+            <span id="spinner-extract-kw" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+            Extract from Comments
+          </button>
+          <div id="keywords-container" class="d-flex flex-wrap gap-1 flex-grow-1"></div>
+        </div>
+        <div class="input-group input-group-sm mt-2" style="max-width: 300px;">
+          <input id="kw-input" type="text" class="form-control" placeholder="Add keyword..."
+                 onkeydown="if(event.key==='Enter'){event.preventDefault(); addKeywordFromInput()}" />
+          <button class="btn btn-outline-secondary" type="button" onclick="addKeywordFromInput()">+</button>
+        </div>
       </div>
     </div>
 
@@ -577,6 +601,7 @@
         session_folder_path,
         sample_unique_id: document.getElementById("sample-uid").value.trim() || null,
         comments: document.getElementById("comments").value.trim(),
+        keywords: getKeywords(),
       };
 
       try {
@@ -752,12 +777,15 @@
       document.getElementById("sample-uid").value = "";
       document.getElementById("description").value = "";
       document.getElementById("comments").value = "";
+      _keywords = [];
+      renderKeywords();
       clearStatus();
     });
 
     init();
   </script>
 
+  <script src="{{ url_for('static', filename='js/ai_services.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
