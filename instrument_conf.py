@@ -10,7 +10,7 @@ INSTRUMENT_FLOWS = {
 }
 
 PRINT_BARCODE_ENABLED = False
-
+ACCEPTABLE_FILE_TYPES = {'.emd', '.dm3', '.dm4', '.bcf', '.ser', '.mcr', '.h5'}
 '''
 To enable barcode printing: 
 - set PRINT_BARCODE_ENABLED to True
