@@ -198,7 +198,6 @@ def check_existing_sessions(session_folder_path: str, orcid: str, project_id: st
     ]
 
 
-@task(retries=3, retry_delay_seconds=5)
 def create_session(session_folder_path: str, kw_list: list[str], comments: str, orcid: str,
                    project_id: str, instrument_name: str, sample_unique_id: str | None = None,
                    session_dsid: str | None = None) -> tuple[str, str]:
@@ -214,7 +213,6 @@ def create_session(session_folder_path: str, kw_list: list[str], comments: str, 
                                 project_id=project_id,
                                 instrument_name=instrument_name,
                                 measurement=f'full {instrument_name} session',
-                               # data_type = '',                                
                                 session_name=session_name)
 
         new_sess_ds = client.datasets.create(session_ds,
@@ -227,6 +225,38 @@ def create_session(session_folder_path: str, kw_list: list[str], comments: str, 
         client.samples.add_to_dataset(sample_id=sample_unique_id,
                                       dataset_id=use_session_dsid)
     return session_name, use_session_dsid
+
+
+def get_or_create_insitu_dataset(file_path: str, orcid: str, project_id: str,
+                                 kw_list: list[str], comments: str) -> str:
+    """Return the dsid of an existing insitu dataset for this file/user/project,
+    creating an empty one if none exists. Used by /api/upload to obtain a dsid
+    synchronously so the UI can show the Crucible link before the flow runs.
+    """
+    project_id = project_id.replace('Internal Research (', '').replace(')', '').strip()
+    dataset_name = Path(file_path).name
+
+    existing = client.datasets.list(
+        dataset_name=dataset_name,
+        owner_orcid=orcid,
+        project_id=project_id,
+        limit=None,
+    )
+    found_dsid = None
+    if existing:
+        existing.sort(key=lambda d: d.get('modification_time') or '', reverse=True)
+        found_dsid = existing[0]['unique_id']
+
+    ds_kwargs = {k: v for k, v in dict(
+        unique_id=found_dsid,
+        dataset_name=dataset_name,
+        owner_orcid=orcid,
+        project_id=project_id,
+    ).items() if v is not None}
+    ds = BaseDataset(**ds_kwargs)
+    scimd = {'comments': comments} if comments else {}
+    new_ds = client.datasets.create(ds, scientific_metadata=scimd, keywords=kw_list)
+    return new_ds['created_record']['unique_id']
 
 
 @task
@@ -340,15 +370,6 @@ def request_insitu_aggregation(new_ds_dsid: str):
     return response
 
 
-RESULTS_DIR = Path(".flow_results")
-RESULTS_DIR.mkdir(exist_ok=True)
-
-
-def _save_flow_result(dsid: str):
-    from prefect.runtime import flow_run
-    (RESULTS_DIR / str(flow_run.id)).write_text(dsid)
-
-
 def _run_name(prefix):
     def generate():
         from prefect.runtime import flow_run
@@ -358,29 +379,28 @@ def _run_name(prefix):
         return f"{prefix}-{Path(fileinput).name}"
     return generate
 
-# flow to upload an insitu dataset
-@flow(flow_run_name=_run_name("insitu-upload"), persist_result=True)
+
+@task(retries=3, retry_delay_seconds=10)
+def add_file_to_insitu_dataset(dsid: str, file_path: str) -> None:
+    client.datasets.add_file_to_dataset(
+        dsid=dsid, file_path=file_path, wait_for_ingestion_response=True,
+    )
+
+
+# flow to upload an insitu dataset (dataset record pre-created by /api/upload)
+@flow(flow_run_name=_run_name("insitu-upload"))
 def insitu_upload(file: str,
-                  instrument_name: str, 
+                  instrument_name: str,
                   project_id: str,
                   orcid: str,
                   sample_unique_id: str | None = None,
                   session_dsid: str | None = None,
                   kw_list: list[str] = [],
                   comments: str | None = None) -> str:
-    
-    # create the dataset
-    new_ds_dsid = create_dataset(files = [file],
-                                 instrument_name = None,
-                                 project_id = project_id,
-                                 orcid = orcid, 
-                                 kw_list=kw_list,
-                                 comments=comments)
 
-    # request post processing
-    aggregation_status = request_insitu_aggregation(new_ds_dsid)
-    _save_flow_result(new_ds_dsid)
-    return new_ds_dsid
+    add_file_to_insitu_dataset(session_dsid, file)
+    request_insitu_aggregation(session_dsid)
+    return session_dsid
 
 # sub flow to upload a dataset as the child of a session
 @flow(flow_run_name=_run_name("upload"))
@@ -407,7 +427,7 @@ def upload_child_dataset(files: list,
     return new_ds_dsid
 
 # flow to upload a session of TEM data
-@flow(flow_run_name=_run_name("tem-session"), persist_result=True)
+@flow(flow_run_name=_run_name("tem-session"))
 def tem_session_upload(file: str, instrument_name: str, project_id: str, orcid: str,
                        sample_unique_id: str | None = None, session_dsid: str | None = None,
                        kw_list: list[str] = [], comments: str | None = None) -> str:
@@ -486,6 +506,5 @@ def tem_session_upload(file: str, instrument_name: str, project_id: str, orcid: 
     if failed:
         logger.error(f"{len(failed)} child flow(s) failed. Retry them from the Prefect UI.")
 
-    _save_flow_result(session_dsid)
     return session_dsid
 
