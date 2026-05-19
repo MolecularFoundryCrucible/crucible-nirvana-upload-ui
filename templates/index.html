@@ -25,6 +25,7 @@
   <nav class="navbar navbar-dark bg-primary mb-4">
     <div class="container-fluid">
       <span class="navbar-brand fw-semibold">Crucible Upload</span>
+      <button class="btn btn-outline-light btn-sm" type="button" onclick="logout()">Log out</button>
     </div>
   </nav>
 
@@ -184,41 +185,40 @@
 
   </div>
 
-  <!-- Upload Modal (progress + QR code) -->
+  <!-- Upload Modal -->
   <div class="modal fade" id="upload-modal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header" id="upload-modal-header">
-          <h5 class="modal-title" id="upload-modal-title">Uploading...</h5>
+          <h5 class="modal-title" id="upload-modal-title">Submitting...</h5>
         </div>
         <div class="modal-body">
-          <!-- Progress section -->
-          <div id="progress-container">
-            <div class="d-flex justify-content-between mb-1">
-              <small id="progress-label" class="text-muted">Preparing...</small>
-              <small id="progress-pct" class="text-muted">0%</small>
-            </div>
-            <div class="progress" style="height: 1.25rem;">
-              <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
-                   role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-              </div>
-            </div>
+          <!-- Submitting spinner (visible briefly while POST /api/upload is in flight) -->
+          <div id="submitting-section" class="text-center py-3">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 mb-0 text-muted">Creating session and starting upload...</p>
           </div>
-          <!-- Links section (hidden until submission) -->
-          <div id="qr-section" class="text-center mt-4 d-none">
-            <p>
-              Monitor your data upload
-              <a id="prefect-link" href="#" target="_blank">here</a>.
-            </p>
-            <p class="d-none">
+          <!-- Success view (shown as soon as the API returns the dsid) -->
+          <div id="success-section" class="text-center d-none">
+            <p class="mb-2">
               View your data in
               <a id="crucible-link" href="#" target="_blank">Crucible</a>
               or scan the QR code below.
             </p>
-            <div id="qr-code" class="d-inline-block"></div>
+            <div id="qr-code" class="d-inline-block my-2"></div>
+            <p class="mt-3 mb-0">
+              Upload is running in the background — safe to close and start another.
+              Monitor progress in
+              <a id="prefect-link" href="#" target="_blank">Prefect</a>.
+            </p>
+          </div>
+          <!-- Error view -->
+          <div id="error-section" class="d-none">
+            <div class="alert alert-danger mb-0" id="error-message"></div>
           </div>
         </div>
-        <div class="modal-footer d-none" id="upload-modal-footer">
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" onclick="logout()">Log out</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
@@ -528,31 +528,17 @@
     // -------------------------------------------------------------------------
     let uploadModal = null;
 
-    function setProgress(percent, label) {
-      const bar = document.getElementById("progress-bar");
-      bar.style.width = percent + "%";
-      bar.setAttribute("aria-valuenow", percent);
-      document.getElementById("progress-pct").textContent = percent + "%";
-      if (label) document.getElementById("progress-label").textContent = label;
-    }
-
     function resetUploadModal() {
-      const bar = document.getElementById("progress-bar");
-      bar.style.width = "0%";
-      bar.classList.remove("bg-success", "bg-danger");
-      bar.classList.add("progress-bar-striped", "progress-bar-animated");
-      document.getElementById("progress-label").textContent = "Preparing...";
-      document.getElementById("progress-pct").textContent = "0%";
-      document.getElementById("upload-modal-title").textContent = "Uploading...";
+      document.getElementById("upload-modal-title").textContent = "Submitting...";
       document.getElementById("upload-modal-header").className = "modal-header";
-      document.getElementById("upload-modal-footer").classList.add("d-none");
-      document.getElementById("qr-section").classList.add("d-none");
+      document.getElementById("submitting-section").classList.remove("d-none");
+      document.getElementById("success-section").classList.add("d-none");
+      document.getElementById("error-section").classList.add("d-none");
       document.getElementById("qr-code").innerHTML = "";
     }
 
     let _pendingUploadParams = null;
     let _selectedSessionDsid = null;
-    let _pollInterval = null;
 
     function confirmSessionSelection(dsid) {
       const modal = bootstrap.Modal.getInstance(document.getElementById("select-session-modal"));
@@ -649,7 +635,6 @@
         uploadModal = new bootstrap.Modal(document.getElementById("upload-modal"));
       }
       uploadModal.show();
-      setProgress(50, "Running upload flow...");
 
       const body = { ...params };
       if (_selectedSessionDsid !== null) body.session_dsid = _selectedSessionDsid;
@@ -662,30 +647,34 @@
         });
 
         const data = await res.json();
+        document.getElementById("submitting-section").classList.add("d-none");
 
         if (res.ok) {
-          setProgress(30, "Flow submitted, running...");
-          // Show Prefect monitoring link immediately
+          document.getElementById("upload-modal-title").textContent = "Session created — upload running";
+          document.getElementById("upload-modal-header").classList.add("bg-success", "text-white");
+          document.getElementById("success-section").classList.remove("d-none");
+
           const prefectUrl = "http://127.0.0.1:4200/flow-runs/flow-run/" + data.flow_run_id;
           document.getElementById("prefect-link").href = prefectUrl;
-          document.getElementById("qr-section").classList.remove("d-none");
-          document.getElementById("upload-modal-footer").classList.remove("d-none");
 
-          // Poll for completion
-          pollFlowRun(data.flow_run_id, data.project_id);
+          const crucibleBaseUrl = "https://crucible-graph-explorer-776258882599.us-central1.run.app";
+          const datasetUrl = crucibleBaseUrl + "/" + data.project_id + "/datasets/" + data.dsid;
+          document.getElementById("crucible-link").href = datasetUrl;
+          const qrContainer = document.getElementById("qr-code");
+          qrContainer.innerHTML = "";
+          new QRCode(qrContainer, { text: datasetUrl, width: 256, height: 256 });
         } else {
-          const bar = document.getElementById("progress-bar");
-          bar.classList.remove("progress-bar-striped", "progress-bar-animated");
-          bar.classList.add("bg-danger");
-          document.getElementById("progress-label").textContent = "Upload failed";
           document.getElementById("upload-modal-title").textContent = "Upload Failed";
           document.getElementById("upload-modal-header").classList.add("bg-danger", "text-white");
-          document.getElementById("upload-modal-footer").classList.remove("d-none");
-          showStatus(data.error || "Unknown error", "danger");
+          document.getElementById("error-section").classList.remove("d-none");
+          document.getElementById("error-message").textContent = data.error || "Unknown error";
         }
       } catch (e) {
-        showStatus("Upload error: " + e.message, "danger");
-        document.getElementById("upload-modal-footer").classList.remove("d-none");
+        document.getElementById("submitting-section").classList.add("d-none");
+        document.getElementById("upload-modal-title").textContent = "Upload Failed";
+        document.getElementById("upload-modal-header").classList.add("bg-danger", "text-white");
+        document.getElementById("error-section").classList.remove("d-none");
+        document.getElementById("error-message").textContent = "Upload error: " + e.message;
       } finally {
         setSpinner("upload", false);
         document.getElementById("btn-upload").disabled = false;
@@ -693,52 +682,33 @@
     }
 
     // -------------------------------------------------------------------------
-    // Poll flow run until complete, then show Crucible link + QR
+    // Log out — reset all form state and close any open modal. Background
+    // Prefect flows are independent of the browser session and keep running.
     // -------------------------------------------------------------------------
-    function pollFlowRun(flowRunId, projectId) {
-      if (_pollInterval) clearInterval(_pollInterval);
-      _pollInterval = setInterval(async () => {
-        try {
-          const res = await fetch("/api/flow-run/" + flowRunId);
-          const data = await res.json();
-
-          if (data.status === "COMPLETED") {
-            clearInterval(_pollInterval);
-            const bar = document.getElementById("progress-bar");
-            bar.classList.remove("progress-bar-striped", "progress-bar-animated");
-            bar.classList.add("bg-success");
-            setProgress(100, "Upload complete!");
-            document.getElementById("upload-modal-title").textContent = "Upload Complete!";
-            document.getElementById("upload-modal-header").classList.add("bg-success", "text-white");
-
-            // Show Crucible link + QR code
-            const sessionDsid = data.result;
-            if (sessionDsid && projectId) {
-              const crucibleBaseUrl = "https://crucible-graph-explorer-776258882599.us-central1.run.app";
-              const datasetUrl = crucibleBaseUrl + "/" + projectId + "/dataset/" + sessionDsid;
-              document.getElementById("crucible-link").href = datasetUrl;
-              document.getElementById("crucible-link").parentElement.classList.remove("d-none");
-              const qrContainer = document.getElementById("qr-code");
-              qrContainer.innerHTML = "";
-              new QRCode(qrContainer, { text: datasetUrl, width: 256, height: 256 });
-            }
-          } else if (data.status === "FAILED" || data.status === "CRASHED" || data.status === "CANCELLED") {
-            clearInterval(_pollInterval);
-            const bar = document.getElementById("progress-bar");
-            bar.classList.remove("progress-bar-striped", "progress-bar-animated");
-            bar.classList.add("bg-danger");
-            document.getElementById("progress-label").textContent = "Upload failed";
-            document.getElementById("upload-modal-title").textContent = "Upload Failed";
-            document.getElementById("upload-modal-header").classList.add("bg-danger", "text-white");
-            showStatus("Flow run failed. Check the Prefect UI for details.", "danger");
-          } else {
-            // Still running — update progress label
-            setProgress(50, "Running: " + (data.name || "processing..."));
-          }
-        } catch (e) {
-          // Polling error — keep trying
-        }
-      }, 5000);
+    function logout() {
+      if (uploadModal) {
+        try { uploadModal.hide(); } catch (e) { /* ignore */ }
+      }
+      document.getElementById("email").value = "";
+      state.orcid = "";
+      state.projects = [];
+      setText("user-name", "—");
+      setText("user-orcid", "—");
+      const projSel = document.getElementById("project");
+      projSel.innerHTML = '<option value="">Look up a user first</option>';
+      projSel.disabled = true;
+      document.getElementById("sample-name").value = "";
+      document.getElementById("sample-uid").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("session-folder").value = "";
+      document.getElementById("comments").value = "";
+      if (typeof _keywords !== "undefined") {
+        _keywords = [];
+        renderKeywords();
+      }
+      _pendingUploadParams = null;
+      _selectedSessionDsid = null;
+      clearStatus();
     }
 
     // -------------------------------------------------------------------------
@@ -769,7 +739,6 @@
     }
 
     document.getElementById("upload-modal").addEventListener("hidden.bs.modal", function () {
-      if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
       _pendingUploadParams = null;
       _selectedSessionDsid = null;
       document.getElementById("session-folder").value = "";
@@ -777,8 +746,10 @@
       document.getElementById("sample-uid").value = "";
       document.getElementById("description").value = "";
       document.getElementById("comments").value = "";
-      _keywords = [];
-      renderKeywords();
+      if (typeof _keywords !== "undefined") {
+        _keywords = [];
+        renderKeywords();
+      }
       clearStatus();
     });
 
