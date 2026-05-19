@@ -715,7 +715,7 @@
             const sessionDsid = data.result;
             if (sessionDsid && projectId) {
               const crucibleBaseUrl = "https://crucible-graph-explorer-776258882599.us-central1.run.app";
-              const datasetUrl = crucibleBaseUrl + "/" + projectId + "/dataset/" + sessionDsid;
+              const datasetUrl = crucibleBaseUrl + "/" + projectId + "/datasets/" + sessionDsid;
               document.getElementById("crucible-link").href = datasetUrl;
               document.getElementById("crucible-link").parentElement.classList.remove("d-none");
               const qrContainer = document.getElementById("qr-code");
