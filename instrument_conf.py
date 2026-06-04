@@ -5,11 +5,23 @@ IS_SESSION = True
 INSTRUMENTS=["titanx", "themis", "team1",  "team05", 'spectre', "insitu_pl"] # you can add your instrument here
 DEFAULT_INSTRUMENT_NAME = 'titanx'
 
-# Maps instrument names to their Prefect deployment name (flow-name/deployment-name)
+# Maps session-mode instruments to their Prefect deployment (flow-name/deployment-name).
+# Only consulted in session mode (IS_SESSION = True); non-session uploads always use
+# the generic upload-dataset / multi-file-upload deployments.
 INSTRUMENT_FLOWS = {
-    "insitu_pl": "insitu-upload/insitu-upload",
-    "titanx": "tem-session-upload/tem-session-upload",  # add when ready
+    "titanx": "session-upload/session-upload",  # add when ready
 }
+
+# Post-processing requested on each dataset after its files land, keyed by instrument.
+# Each name maps to client.datasets.request_<name> (e.g. "insitu_aggregation" ->
+# request_insitu_aggregation). Instruments not listed get no post-processing.
+POST_PROCESSING_REQUESTS = {
+    "insitu_pl": ["insitu_aggregation"],
+}
+# True  = run an instrument's post-processing requests sequentially; each depends on
+#         the previous succeeding (a failure halts the rest).
+# False = request all of them in parallel (independent of each other).
+CHAIN_POST_PROCESSING = True
 
 PRINT_BARCODE_ENABLED = False
 ACCEPTABLE_FILE_TYPES = {'.emd', '.dm3', '.dm4', '.bcf', '.ser', '.mcr', '.h5'}

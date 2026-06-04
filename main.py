@@ -240,45 +240,39 @@ def do_upload():
             backend.logger.error(e)
             return jsonify({"error": str(e)}), 500
 
-    # Non-session mode: each selected file becomes its own dataset.
-    # - Single file (insitu or not): sync SHA lookup so the UI gets the dsid
-    #   (existing or fresh mfid) immediately; always fire the flow.
-    # - N>1 insitu: loop per file (insitu is rarely multi-file, no bulk path).
-    # - N>1 non-insitu: one multi_file_upload run that builds the SHA map once
-    #   and fans out internally; UI shows the project page.
-    is_insitu = INSTRUMENT_FLOWS.get(instrument_name, "").startswith("insitu-upload")
-
-    if len(session_folder_paths) == 1 or is_insitu:
-        deployment_name = "insitu-upload/insitu-upload" if is_insitu else "upload-dataset/upload-dataset"
+    # Non-session mode: each selected file becomes its own dataset. Post-processing
+    # (e.g. insitu aggregation) is handled inside upload_dataset per instrument config,
+    # so no instrument special-casing is needed here.
+    # - Single file: sync SHA lookup so the UI gets the dsid (existing or fresh mfid)
+    #   immediately; fire one upload-dataset run and show the dataset page.
+    # - N>1 files: one multi_file_upload run that builds the SHA map once and fans
+    #   out per-file upload_dataset sub-flows; UI shows the project page.
+    if len(session_folder_paths) == 1:
+        path = session_folder_paths[0]
         try:
-            results = []
-            for path in session_folder_paths:
-                dsid, _ = backend.resolve_dsid_for_file(path)
-                flow_run = run_deployment(
-                    deployment_name,
-                    parameters={
-                        "files": [path],
-                        "dsid": dsid,
-                        "instrument_name": instrument_name,
-                        "project_id": project_id,
-                        "orcid": orcid,
-                        "sample_unique_id": sample_unique_id,
-                        "kw_list": kw_list,
-                        "comments": comments,
-                    },
-                    timeout=0,
-                )
-                results.append({"dsid": dsid, "flow_run_id": str(flow_run.id)})
+            dsid, _ = backend.resolve_dsid_for_file(path)
+            flow_run = run_deployment(
+                "upload-dataset/upload-dataset",
+                parameters={
+                    "files": [path],
+                    "dsid": dsid,
+                    "instrument_name": instrument_name,
+                    "project_id": project_id,
+                    "orcid": orcid,
+                    "sample_unique_id": sample_unique_id,
+                    "kw_list": kw_list,
+                    "comments": comments,
+                },
+                timeout=0,
+            )
         except Exception as e:
             backend.logger.error(e)
             return jsonify({"error": str(e)}), 500
-        if len(results) == 1:
-            return jsonify({
-                "flow_run_id": results[0]["flow_run_id"],
-                "project_id": project_id,
-                "dsid": results[0]["dsid"],
-            })
-        return jsonify({"project_id": project_id, "uploads": results})
+        return jsonify({
+            "flow_run_id": str(flow_run.id),
+            "project_id": project_id,
+            "dsid": dsid,
+        })
 
     # Generic multi-file path: fire one multi_file_upload run; it handles SHA
     # dedup and fans out per-file upload_dataset sub-flows.

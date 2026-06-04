@@ -325,9 +325,9 @@ def link_dataset_and_sample(new_ds_dsid: str, sample_unique_id: str | None = Non
     return None
 
 @task(retries=3, retry_delay_seconds=5)
-def request_insitu_aggregation(new_ds_dsid: str):
-    response = client.datasets.request_insitu_aggregation(new_ds_dsid)
-    return response
+def request_post_processing(name: str, new_ds_dsid: str):
+    # name maps to client.datasets.request_<name>, e.g. "insitu_aggregation".
+    return getattr(client.datasets, f"request_{name}")(new_ds_dsid)
 
 
 def _run_name(prefix):
@@ -340,39 +340,11 @@ def _run_name(prefix):
     return generate
 
 
-# flow to upload an insitu dataset — same as upload_dataset but also requests
-# insitu aggregation after the file lands.
-@flow(flow_run_name=_run_name("insitu-upload"))
-def insitu_upload(files: list,
-                  instrument_name: str,
-                  project_id: str,
-                  orcid: str,
-                  session_name: str | None = None,
-                  session_dsid: str | None = None,
-                  dsid: str | None = None,
-                  sample_unique_id: str | None = None,
-                  kw_list: list[str] = [],
-                  comments: str | None = None) -> str:
-
-    new_ds_dsid = create_dataset(files=files,
-                                 instrument_name=instrument_name,
-                                 project_id=project_id,
-                                 orcid=orcid,
-                                 session_name=session_name,
-                                 dsid=dsid,
-                                 kw_list=kw_list,
-                                 comments=comments)
-
-    link_dataset_to_session(new_ds_dsid, session_dsid)
-    link_dataset_and_sample(new_ds_dsid, sample_unique_id)
-    request_insitu_aggregation(new_ds_dsid)
-    return new_ds_dsid
-
-# Generic per-dataset upload flow. Used both for session children (session_dsid +
-# session_name passed; dsid left None so create_dataset's SHA dedup runs) and for
-# standalone multi-file uploads (dsid pre-assigned by multi_file_upload after its
-# own SHA check; session_dsid/session_name left None so link_dataset_to_session
-# is a no-op).
+# Generic per-dataset upload flow. Every upload path bottoms out here: session
+# children (session_dsid + session_name passed), standalone multi-file uploads
+# (dsid pre-assigned by multi_file_upload), and single-file uploads. Post-processing
+# (e.g. insitu aggregation) is driven by POST_PROCESSING_REQUESTS keyed on
+# instrument_name, so it applies uniformly no matter how the upload was started.
 @flow(flow_run_name=_run_name("upload"))
 def upload_dataset(files: list,
                    instrument_name: str,
@@ -384,6 +356,7 @@ def upload_dataset(files: list,
                    sample_unique_id: str | None = None,
                    kw_list: list[str] = [],
                    comments: str | None = None) -> str:
+    from instrument_conf import POST_PROCESSING_REQUESTS, CHAIN_POST_PROCESSING
 
     new_ds_dsid = create_dataset(files=files,
                                  instrument_name=instrument_name,
@@ -396,11 +369,22 @@ def upload_dataset(files: list,
 
     link_dataset_to_session(new_ds_dsid, session_dsid)
     link_dataset_and_sample(new_ds_dsid, sample_unique_id)
+
+    requests = POST_PROCESSING_REQUESTS.get(instrument_name, [])
+    if CHAIN_POST_PROCESSING:
+        # Sequential — each blocks on the previous; a failure halts the rest.
+        for name in requests:
+            request_post_processing(name, new_ds_dsid)
+    else:
+        # Independent — fire all at once.
+        for name in requests:
+            request_post_processing.submit(name, new_ds_dsid)
+
     return new_ds_dsid
 
-# flow to upload a session of TEM data
-@flow(flow_run_name=_run_name("tem-session"))
-def tem_session_upload(file: str, instrument_name: str, project_id: str, orcid: str,
+# flow to upload a session of files (folder → parent dataset + child per file)
+@flow(flow_run_name=_run_name("session"))
+def session_upload(file: str, instrument_name: str, project_id: str, orcid: str,
                        sample_unique_id: str | None = None, session_dsid: str | None = None,
                        kw_list: list[str] = [], comments: str | None = None) -> str:
     import time
