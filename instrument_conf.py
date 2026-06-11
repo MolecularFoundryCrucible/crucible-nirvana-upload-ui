@@ -1,9 +1,12 @@
-DEFAULT_BROWSE_DIR = '/Users/mkwall/Documents'
+import os
+HOME = os.environ.get('HOME')
+
+DEFAULT_BROWSE_DIR = f'{HOME}/Documents'
 # True  = pick a folder; create parent session dataset + one child dataset per file inside
 # False = pick one or more files; each becomes its own standalone dataset (or insitu, per instrument)
-IS_SESSION = False
+IS_SESSION = True
 INSTRUMENTS = ['titanx', 'themis', 'team1', 'team05', 'spectre', 'insitu_pl', 'spinbot']
-DEFAULT_INSTRUMENT_NAME = 'spinbot'
+DEFAULT_INSTRUMENT_NAME = 'titanx'
 
 # Maps session-mode instruments to their Prefect deployment (flow-name/deployment-name).
 # Only consulted in session mode (IS_SESSION = True); non-session uploads always use
@@ -25,6 +28,7 @@ CHAIN_POST_PROCESSING = True
 
 PRINT_BARCODE_ENABLED = False
 ACCEPTABLE_FILE_TYPES = {'.bcf', '.dm3', '.dm4', '.emd', '.h5', '.mcr', '.ser'}
+
 '''
 To enable barcode printing: 
 - set PRINT_BARCODE_ENABLED to True
