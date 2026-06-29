@@ -12,7 +12,7 @@ from prefect import flow, task
 from prefect.logging import get_run_logger
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class MultipleSessionsFound(Exception):
@@ -85,7 +85,7 @@ def lookup_user_by_email(email: str) -> dict:
     project_list = [{'project_id': x['project_id'], 'title': x.get('title') or ''}
                     for x in projects]
     project_list.sort(key=lambda p: p['project_id'])
-    logger.info(f"Projects for email '{email}' are: {project_list}")
+    logger.info(f"{len(project_list)} projects found for email '{email}'")
     return {'name': user_name,
             'orcid': user_info['unique_id'],
             'projects': project_list}
