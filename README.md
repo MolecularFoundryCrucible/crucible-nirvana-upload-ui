@@ -1,16 +1,14 @@
-# crucible-tem-upload-ui
+# crucible-nirvana-upload-ui
 
-Source: https://github.com/MolecularFoundryCrucible/crucible-tem-upload-ui
+Source: https://github.com/MolecularFoundryCrucible/crucible-nirvana-upload-ui
 
-This is a flask based application for uploading TEM generated data files to the [Crucible data platform](https://crucible.lbl.gov). The app is meant to run locally on instrument support PCs.<br> The following workflow is supported by this application: 
+This is a flask based application for uploading .h5 data files from the Inorganic facility's Nirvana tool to the [Crucible data platform](https://crucible.lbl.gov). The app is meant to run locally on instrument support PCs.<br> The following workflow is supported by this application: 
 
 - **Users can enter their ORCID or email address:**<br>
 This will populate a list of projects for which the user has access. It will also ensure that the data uploaded is associated with that user account.
 
 - **Select a project to upload the dataset to**<br>
 All members of the project will then have access to the uploaded data through the Crucible platform
-
-- **Select the instrument from which they are uploading data**
 
 - **Search for a sample by sample_name or unique_id**
 This will display the sample details and create a relationship between any uploaded datasets and the sample provided.
@@ -22,9 +20,7 @@ Depending on how the app is configured (see `IS_SESSION` under [Additional Detai
 
 In all modes, uploaded datasets are linked to the provided sample, user, and project_id. 
 
-Once data is uploaded it can be viewed in the [Crucible Web Explorer](https://crucible-graph-explorer-776258882599.us-central1.run.app/)!
-
-*In **session mode**, a folder is scanned and only files smaller than 20GB with an accepted extension are uploaded; configure the accepted extensions via `ACCEPTABLE_FILE_TYPES` in `instrument_conf.py` (see [Additional Details](#additional-details)). For each `.ser` file the matching `.emi` is included automatically. In **file mode** the user selects files directly, so this filter does not apply.
+Once data is uploaded it can be viewed in the [Crucible Web Explorer](https://crucible.lbl.gov/explore)!
 
 ### System requirements
 - internet connection
@@ -34,7 +30,7 @@ Once data is uploaded it can be viewed in the [Crucible Web Explorer](https://cr
 - (recommended) [uv](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer) `pipx install uv`
 
 ### Set Up
-1. Clone this repository `git clone https://github.com/MolecularFoundryCrucible/crucible-tem-upload-ui.git`
+1. Clone this repository `git clone https://github.com/MolecularFoundryCrucible/crucible-nirvana-upload-ui.git`
 2. Create the uv virtual environment (alternatively, use the package manager of your choice and install from requirements-flask.txt)
 ```
 cd crucible-tem-upload-ui
@@ -77,13 +73,13 @@ The app runs as three coordinated processes: a local **Prefect server** (orchest
 
 **macOS / Linux:**
 ```
-cd crucible-tem-upload-ui
+cd crucible-nirvana-upload-ui
 ./start.sh
 ```
 
 **Windows:**
 ```
-cd crucible-tem-upload-ui
+cd crucible-nirvana-upload-ui
 start.bat
 ```
 
