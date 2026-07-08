@@ -13,6 +13,7 @@ from tkinter import filedialog
 
 from flask import Flask, jsonify, render_template, request
 
+import crucible
 import prefect_backend as backend
 import instrument_conf as conf
 from ai_services import voice_bp, extract_keywords
@@ -74,7 +75,9 @@ def _drain(q: queue.Queue):
 
 @app.get("/")
 def index():
-    return render_template("index.html", print_barcode_enabled=conf.PRINT_BARCODE_ENABLED)
+    return render_template("index.html",
+                           print_barcode_enabled=conf.PRINT_BARCODE_ENABLED,
+                           crucible_version=crucible.__version__)
 
 
 @app.get("/api/instruments")
@@ -233,18 +236,17 @@ def save_config():
 
 @app.post("/api/user/lookup")
 def user_lookup():
-    email = (request.json or {}).get("email", "").strip()
-    if not email:
-        return jsonify({"error": "email required"}), 400
+    data = request.json or {}
+    identifier = (data.get("identifier") or data.get("email") or "").strip()
+    if not identifier:
+        return jsonify({"error": "identifier required"}), 400
     try:
-        result = backend.lookup_user_by_email(email)
-        # backend.logger.info(f"Lookup for email '{email}' returned: {result}")
+        result = backend.lookup_user(identifier)
     except Exception as e:
         backend.logger.error(e)
         return jsonify({"error": str(e)}), 500
     if not result:
-        backend.logger.info(f"No user found for email '{email}'")
-        return jsonify({"error": f"No user found for '{email}'"}), 404
+        return jsonify({"error": f"No user found for '{identifier}'"}), 404
     return jsonify(result)
 
 

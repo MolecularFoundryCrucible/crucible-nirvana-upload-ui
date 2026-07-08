@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 import subprocess as sp
 from crucible import CrucibleClient
-from crucible.models import BaseDataset
+from crucible.models import Dataset as BaseDataset
 import logging
 from prefect import flow, task
 from prefect.logging import get_run_logger
@@ -63,32 +63,50 @@ def run_rclone_command(source_path: str = "", destination_path: str = "", cmd: s
     return run_shell(rclone_cmd, background=background, checkflag=checkflag)
 
 
-def lookup_user_by_email(email: str) -> dict:
+_ORCID_RE = re.compile(r'^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
+
+
+def _classify_identifier(identifier: str) -> str:
+    """Return 'orcid', 'email', or 'username'."""
+    clean = identifier.strip().split('/')[-1]  # strip https://orcid.org/ prefix if present
+    if _ORCID_RE.match(clean):
+        return 'orcid'
+    if '@' in identifier:
+        return 'email'
+    return 'username'
+
+
+def lookup_user(identifier: str) -> dict:
     """
-    Look up a user by email address.
+    Look up a user by email, ORCID, or username.
 
     Returns a dict with keys:
-        name    (str) display name
-        orcid   (str) ORCID identifier
+        name     (str) display name
+        orcid    (str) ORCID identifier
         projects (list[dict]) list of {project_id, title} dicts for the user's projects
 
     Returns an empty dict if the user is not found.
     """
-    user_info = client.users.get(email=email)
-    logger.info(f"Lookup for email '{email}' returned: {user_info}")
+    id_type = _classify_identifier(identifier)
+    kwargs = {id_type: identifier.strip()}
+    user_info = client.users.get(**kwargs)
+    logger.info(f"Lookup for {id_type} '{identifier}' returned: {user_info}")
     if user_info is None:
         return {}
 
     user_name = f"{user_info['first_name']} {user_info['last_name']}"
-    logger.info(f"User name for email '{email}' is: {user_name}")
-    projects = client.projects.list(user_info['unique_id'], limit = None)
+    projects = client.projects.list(user_info['unique_id'], limit=None)
     project_list = [{'project_id': x['project_id'], 'title': x.get('title') or ''}
                     for x in projects]
     project_list.sort(key=lambda p: p['project_id'])
-    logger.info(f"{len(project_list)} projects found for email '{email}'")
+    logger.info(f"{len(project_list)} projects found for {id_type} '{identifier}'")
     return {'name': user_name,
             'orcid': user_info['unique_id'],
             'projects': project_list}
+
+
+def lookup_user_by_email(email: str) -> dict:
+    return lookup_user(email)
 
 
 def lookup_sample(sample_name: str | None = None, sample_unique_id: str | None = None, project_id: str | None = None) -> dict:
@@ -263,7 +281,7 @@ def resolve_dsid_for_file(file_path: str, valid_dsids: set[str] | None = None) -
     """
     import mfid
     sha = _compute_sha256(file_path)
-    for f in client.files.list_files(sha256_hash=sha):
+    for f in client.files.list(sha256_hash=sha):
         match_dsid = f.get('dataset_mfid')
         if match_dsid and (valid_dsids is None or match_dsid in valid_dsids):
             return match_dsid, True
@@ -273,7 +291,7 @@ def resolve_dsid_for_file(file_path: str, valid_dsids: set[str] | None = None) -
 def resolve_dsids_parallel(files: list[str], valid_dsids: set[str] | None = None,
                            max_workers: int = 8) -> list[tuple[str, bool]]:
     """resolve_dsid_for_file for each file, in parallel. The lookups are I/O-bound
-    (file read + list_files HTTP call), so a thread pool overlaps them. Results are
+    (file read + files.list HTTP call), so a thread pool overlaps them. Results are
     returned in the same order as files.
     """
     from concurrent.futures import ThreadPoolExecutor
