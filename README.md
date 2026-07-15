@@ -1,10 +1,10 @@
-# crucible-nirvana-upload-ui
+# crucible-upload-uis
 
-Source: https://github.com/MolecularFoundryCrucible/crucible-nirvana-upload-ui
+Source: https://github.com/MolecularFoundryCrucible/crucible-upload-uis
 
-This is a flask based application for uploading .h5 data files from the Inorganic facility's Nirvana tool to the [Crucible data platform](https://crucible.lbl.gov). The app is meant to run locally on instrument support PCs.<br> The following workflow is supported by this application: 
+This is a Flask-based application for uploading instrument data to the [Crucible data platform](https://crucible.lbl.gov), creating datasets, and linking to samples. The app is meant to run locally on instrument support PCs.<br> The following workflow is supported by this application: 
 
-- **Users can enter their ORCID or email address:**<br>
+- **Users can enter their ORCID, Crucible username, or email address:**<br>
 This will populate a list of projects for which the user has access. It will also ensure that the data uploaded is associated with that user account.
 
 - **Select a project to upload the dataset to**<br>
@@ -18,9 +18,9 @@ Depending on how the app is configured (see `IS_SESSION` under [Additional Detai
     - **Session mode** (folder): the folder name is used to create a `parent dataset` in the Crucible platform with a measurement type of the format `{instrument_name} full session`. All supported files* within the folder are uploaded as datasets and linked as "children" of the session dataset.
     - **File mode** (one or more files): each selected file becomes its own standalone dataset. No parent session is created.
 
-In all modes, uploaded datasets are linked to the provided sample, user, and project_id. 
+In all modes, uploaded datasets are linked to the provided sample(s), user, and project_id. 
 
-Once data is uploaded it can be viewed in the [Crucible Web Explorer](https://crucible.lbl.gov/explore)!
+Once data is uploaded, it can be viewed in the [Crucible Web Explorer](https://crucible.lbl.gov/explore)!
 
 ### System requirements
 - internet connection
@@ -30,10 +30,10 @@ Once data is uploaded it can be viewed in the [Crucible Web Explorer](https://cr
 - (recommended) [uv](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer) `pipx install uv`
 
 ### Set Up
-1. Clone this repository `git clone https://github.com/MolecularFoundryCrucible/crucible-nirvana-upload-ui.git`
+1. Clone this repository `git clone https://github.com/MolecularFoundryCrucible/crucible-upload-uis.git`
 2. Create the uv virtual environment (alternatively, use the package manager of your choice and install from requirements-flask.txt)
 ```
-cd crucible-tem-upload-ui
+cd crucible-upload-uis
 uv sync
 ```
 3. Configure crucible
@@ -73,19 +73,19 @@ The app runs as three coordinated processes: a local **Prefect server** (orchest
 
 **macOS / Linux:**
 ```
-cd crucible-nirvana-upload-ui
+cd crucible-upload-uis
 ./start.sh
 ```
 
 **Windows:**
 ```
-cd crucible-nirvana-upload-ui
+cd crucible-upload-uis
 start.bat
 ```
 
 Both scripts set `PREFECT_API_URL=http://127.0.0.1:4200/api`, start the Prefect server, wait for it to come up, start `serve_flows.py`, then run the Flask app in the foreground. The Prefect UI is available at http://127.0.0.1:4200 for monitoring flow runs.
 
-### Additional Details
+### Additional Details (potentially outdated)
 - instrument_conf.py allows configuration of instrument specific details that may be helpful:
     - `DEFAULT_BROWSE_DIR` will set the default directory for the file/folder picker.
     - `IS_SESSION` controls the upload mode (applies to the whole app):
