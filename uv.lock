@@ -375,7 +375,7 @@ dependencies = [
 requires-dist = [
     { name = "flask", specifier = ">=3.0" },
     { name = "h5py", specifier = ">=3.0" },
-    { name = "nano-crucible", specifier = "==3.0.0" },
+    { name = "nano-crucible", specifier = "==3.0.1" },
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "prefect", specifier = ">=3.6.25" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -1230,7 +1230,7 @@ wheels = [
 
 [[package]]
 name = "nano-crucible"
-version = "3.0.0"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
@@ -1248,9 +1248,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/8b/5a4e4a5130d7a7a7ae0de12c911dee2f10b084708f700d2a291ecf775e43/nano_crucible-3.0.0.tar.gz", hash = "sha256:0cba71817947f03755261d3922897959dd566a995ad6cc762e648ea47f400e5a", size = 149724, upload-time = "2026-07-06T19:01:02.42Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/63/6e4b81a517c196c1694f338af5f856670099033f9477ced49556cc6cf714/nano_crucible-3.0.1.tar.gz", hash = "sha256:c916ea90fc73ea7ec91deb5e2c2a2e47515fe8d6861b44d7901c535145ba9828", size = 149725, upload-time = "2026-07-08T16:40:55.772Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/c1/f9ffc26ef262f5791ce22e7e549fc44d52ee4adffc18e7c9b9deb0fa40bd/nano_crucible-3.0.0-py3-none-any.whl", hash = "sha256:caed7acc894f639ff9e0731ad505274ab405ec8be00621b5844caca5ac0588a7", size = 185798, upload-time = "2026-07-06T19:01:00.964Z" },
+    { url = "https://files.pythonhosted.org/packages/89/83/19f6bfe54a8f8aaddbeb0db46e430bfd4ff4fee5af2bd9f2a7bad3b6148e/nano_crucible-3.0.1-py3-none-any.whl", hash = "sha256:4dec37d9b28a98982d81aaedea785a489e30bf56473cd326afe0a2367cb797cd", size = 185806, upload-time = "2026-07-08T16:40:54.197Z" },
 ]
 
 [[package]]
