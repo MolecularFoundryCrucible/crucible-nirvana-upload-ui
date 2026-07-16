@@ -1154,6 +1154,7 @@
       const assignments = _maAssignments.map(fileObj => ({
         file: fileObj.path,
         sample_uuids: fileObj.samples.filter(s => !s.excluded).map(s => s.uuid).filter(Boolean),
+        excluded_uuids: fileObj.samples.filter(s => s.excluded).map(s => s.uuid).filter(Boolean),
       }));
 
       const payload = {

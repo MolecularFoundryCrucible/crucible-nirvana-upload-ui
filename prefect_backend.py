@@ -317,7 +317,8 @@ def create_dataset(files: list[str],
                    dsid: str | None = None,
                    kw_list: list[str] = [],
                    comments: str | None = None,
-                   ingestor: str | None = None) -> str:
+                   ingestor: str | None = None,
+                   excluded_uuids: list[str] = []) -> str:
     logger = get_run_logger()
 
     ds_kwargs = {k: v for k, v in dict(
@@ -329,6 +330,8 @@ def create_dataset(files: list[str],
     ).items() if v is not None}
     ds = BaseDataset(**ds_kwargs)
     scimd = {'comments': comments} if comments else {}
+    if excluded_uuids:
+        scimd['skipped thin films'] = excluded_uuids
     try:
         new_ds = client.datasets.create(
             ds,
@@ -620,7 +623,8 @@ def multi_assignment_upload(file: str,
                    dsid: str | None = None,
                    kw_list: list[str] = [],
                    comments: str | None = None,
-                   ingestor: str | None = None) -> str:
+                   ingestor: str | None = None,
+                   excluded_uuids: list[str] = []) -> str:
     from instruments.registry import POST_PROCESSING_REQUESTS
     from instrument_conf import CHAIN_POST_PROCESSING
     logger = get_run_logger()
@@ -632,7 +636,8 @@ def multi_assignment_upload(file: str,
                               dsid=dsid,
                               kw_list=kw_list,
                               comments=comments,
-                              ingestor=ingestor)
+                              ingestor=ingestor,
+                              excluded_uuids=excluded_uuids)
     link_dataset_and_sample(new_dsid, sample_uuids)
     logger.info(f"Linked {len(sample_uuids)} samples to dataset {new_dsid}")
 
