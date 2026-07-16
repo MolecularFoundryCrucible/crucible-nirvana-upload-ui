@@ -870,7 +870,7 @@
           document.getElementById("prefect-link").href = prefectUrl;
 
           // Per-dataset link for session/single-insitu; project page link for multi.
-          const crucibleBaseUrl = "https://crucible-graph-explorer-776258882599.us-central1.run.app";
+          const crucibleBaseUrl = "https://crucible.lbl.gov/explore";
           const linkUrl = isSingleDataset
             ? `${crucibleBaseUrl}/${data.project_id}/datasets/${data.dsid}`
             : `${crucibleBaseUrl}/${data.project_id}/#tab=datasets`;
@@ -1192,7 +1192,7 @@
           const first = submitted[0] || {};
           const prefectUrl = "http://127.0.0.1:4200/flow-runs/flow-run/" + (first.flow_run_id || "");
           document.getElementById("prefect-link").href = prefectUrl;
-          const crucibleBaseUrl = "https://crucible-graph-explorer-776258882599.us-central1.run.app";
+          const crucibleBaseUrl = "https://crucible.lbl.gov/explore";
           const linkUrl = first.dsid
             ? `${crucibleBaseUrl}/${project_id}/datasets/${first.dsid}`
             : `${crucibleBaseUrl}/${project_id}/#tab=datasets`;
