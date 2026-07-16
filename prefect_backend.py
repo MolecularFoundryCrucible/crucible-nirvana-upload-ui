@@ -385,32 +385,35 @@ def list_ingestors() -> list[str]:
 
 
 def resolve_holders(instrument: str, holder_uuids: list[str], layout_name: str = '') -> list[dict]:
-    """Fetch child samples for each holder UUID and return grid-ready data."""
+    """Fetch child samples for each holder UUID and return a single merged grid entry."""
     from instruments.registry import INSTRUMENT_HOLDER_LAYOUTS
     layouts = INSTRUMENT_HOLDER_LAYOUTS.get(instrument, {})
     layout = layouts.get(layout_name) or next(iter(layouts.values()), [])
-    results = []
+    all_samples = []
+    labels = []
+    pos = 1
     for i, uuid in enumerate(holder_uuids):
         if not uuid:
             continue
         holder_cfg = layout[i] if i < len(layout) else {}
-        label = holder_cfg.get('label', f'Holder {i + 1}')
+        labels.append(holder_cfg.get('label', f'Holder {i + 1}'))
         slots = holder_cfg.get('slots', 8)
-        children = client.samples.list_children(uuid)
-        samples = []
+        children = sorted(client.samples.list_children(uuid), key=lambda c: c.get('sample_name', ''))
         for j in range(slots):
             if j < len(children):
                 c = children[j]
-                samples.append({
-                    'position': f'S{j + 1:02d}',
+                all_samples.append({
+                    'position': f'S{pos:02d}',
                     'name': c.get('sample_name') or '',
                     'uuid': c.get('unique_id') or '',
                     'excluded': False,
                 })
             else:
-                samples.append({'position': f'S{j + 1:02d}', 'name': '', 'uuid': '', 'excluded': False})
-        results.append({'basename': label, 'file': uuid, 'samples': samples})
-    return results
+                all_samples.append({'position': f'S{pos:02d}', 'name': '', 'uuid': '', 'excluded': False})
+            pos += 1
+    basename = ' + '.join(labels) if labels else 'Holders'
+    file_key = ','.join(u for u in holder_uuids if u)
+    return [{'basename': basename, 'file': file_key, 'samples': all_samples}]
 
 
 @task(retries=3, retry_delay_seconds=5)
