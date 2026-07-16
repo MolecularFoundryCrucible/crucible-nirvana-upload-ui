@@ -12,11 +12,6 @@ DEFAULT_INSTRUMENT_NAME = 'nirvana'
 # False = request all of them in parallel (independent of each other).
 CHAIN_POST_PROCESSING = True
 
-# For instruments in multi_assignment mode:
-# False (default) — one file → one Crucible dataset linked to all checked sample UUIDs
-# True            — one file → one Crucible dataset per sample (each linked to one UUID)
-MULTI_ASSIGNMENT_ONE_PER_SAMPLE = False
-
 PRINT_BARCODE_ENABLED = False
 ACCEPTABLE_FILE_TYPES = {'.bcf', '.dm3', '.dm4', '.emd', '.h5', '.mcr', '.ser', '.txt'}
 

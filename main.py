@@ -136,7 +136,6 @@ EDITABLE_FIELDS = {
     "DEFAULT_INSTRUMENT_NAME": "str",
     "CHAIN_POST_PROCESSING": "bool",
     "PRINT_BARCODE_ENABLED": "bool",
-    "MULTI_ASSIGNMENT_ONE_PER_SAMPLE": "bool",
     "ACCEPTABLE_FILE_TYPES": "set_str",
 }
 
@@ -544,7 +543,6 @@ def multi_assignment_upload():
         backend.logger.error(e)
         return jsonify({"error": str(e)}), 500
 
-    one_per_sample = getattr(conf, 'MULTI_ASSIGNMENT_ONE_PER_SAMPLE', False)
     submitted = []
     for item in assignments:
         file_path = item.get("file", "")
@@ -553,52 +551,28 @@ def multi_assignment_upload():
         if not file_path:
             continue
         try:
-            if one_per_sample:
-                for uuid in sample_uuids:
-                    dsid, _ = backend.resolve_dsid_for_file(file_path, valid_dsids)
-                    flow_run = run_deployment(
-                        "upload-dataset/upload-dataset",
-                        parameters={
-                            "files": [file_path],
-                            "instrument_name": instrument_name,
-                            "project_id": project_id,
-                            "orcid": orcid,
-                            "dsid": dsid,
-                            "sample_unique_id": uuid,
-                            "kw_list": kw_list,
-                            "comments": comments,
-                            "ingestor": ingestor,
-                        },
-                        timeout=0,
-                    )
-                    submitted.append({
-                        "file": os.path.basename(file_path),
-                        "flow_run_id": str(flow_run.id),
-                        "dsid": dsid,
-                    })
-            else:
-                dsid, _ = backend.resolve_dsid_for_file(file_path, valid_dsids)
-                flow_run = run_deployment(
-                    "multi-assignment-upload/multi-assignment-upload",
-                    parameters={
-                        "file": file_path,
-                        "sample_uuids": sample_uuids,
-                        "excluded_uuids": excluded_uuids,
-                        "project_id": project_id,
-                        "orcid": orcid,
-                        "instrument_name": instrument_name,
-                        "dsid": dsid,
-                        "kw_list": kw_list,
-                        "comments": comments,
-                        "ingestor": ingestor,
-                    },
-                    timeout=0,
-                )
-                submitted.append({
-                    "file": os.path.basename(file_path),
-                    "flow_run_id": str(flow_run.id),
+            dsid, _ = backend.resolve_dsid_for_file(file_path, valid_dsids)
+            flow_run = run_deployment(
+                "multi-assignment-upload/multi-assignment-upload",
+                parameters={
+                    "file": file_path,
+                    "sample_uuids": sample_uuids,
+                    "excluded_uuids": excluded_uuids,
+                    "project_id": project_id,
+                    "orcid": orcid,
+                    "instrument_name": instrument_name,
                     "dsid": dsid,
-                })
+                    "kw_list": kw_list,
+                    "comments": comments,
+                    "ingestor": ingestor,
+                },
+                timeout=0,
+            )
+            submitted.append({
+                "file": os.path.basename(file_path),
+                "flow_run_id": str(flow_run.id),
+                "dsid": dsid,
+            })
         except Exception as e:
             backend.logger.error(f"multi_assignment upload failed for {file_path}: {repr(e)}")
             return jsonify({"error": str(e)}), 500
