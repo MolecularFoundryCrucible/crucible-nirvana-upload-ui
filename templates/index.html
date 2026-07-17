@@ -423,6 +423,7 @@
       state.defaultIngestors = data.default_ingestors || {};
       state.configDefaultIngestor = data.default_ingestor || "";
       state.instrumentSessionModes = data.instrument_session_modes || {};
+      state.globalIsSession = !!data.is_session;
       applyUploadModeUI();
 
       // Populate ingestor dropdown from server list
@@ -913,10 +914,10 @@
     function onInstrumentChange() {
       const instrument = document.getElementById("instrument").value;
       _applyDefaultIngestor(instrument);
-      if (instrument in state.instrumentSessionModes) {
-        state.isSession = state.instrumentSessionModes[instrument];
-        applyUploadModeUI();
-      }
+      state.isSession = instrument in state.instrumentSessionModes
+        ? state.instrumentSessionModes[instrument]
+        : state.globalIsSession;
+      applyUploadModeUI();
       const isMultiAssignment = state.uiModes[instrument] === 'multi_assignment';
 
       // Hide all per-instrument panels
