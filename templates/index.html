@@ -340,6 +340,12 @@
             {% endfor %}
           </select>
 
+          <!-- Default ingestor -->
+          <label class="form-label fw-semibold">Default ingestor</label>
+          <select id="cfg-default-ingestor" class="form-select mb-3">
+            <option value="">(none — use instrument default)</option>
+          </select>
+
           <!-- Acceptable file types -->
           <label class="form-label fw-semibold">Acceptable file types</label>
           <div id="cfg-filetypes" class="d-flex flex-wrap gap-1 mb-2"></div>
@@ -415,6 +421,7 @@
       state.holderLayouts = data.holder_layouts || {};
       state.defaultHolderLayouts = data.default_holder_layouts || {};
       state.defaultIngestors = data.default_ingestors || {};
+      state.configDefaultIngestor = data.default_ingestor || "";
       applyUploadModeUI();
 
       // Populate ingestor dropdown from server list
@@ -895,9 +902,8 @@
     let _maAssignments = [];   // [{ file, basename, samples: [{position,tray,slot,name,uuid,excluded}] }]
 
     function _applyDefaultIngestor(instrument) {
-      const def = state.defaultIngestors[instrument] || "";
+      const def = state.configDefaultIngestor || state.defaultIngestors[instrument] || "";
       const sel = document.getElementById("ingestor");
-      // Only change if the value exists in the dropdown (or reset to server default)
       if (!def || [...sel.options].some(o => o.value === def)) {
         sel.value = def;
       }
@@ -1304,6 +1310,13 @@
         const defSel = document.getElementById("cfg-default-instrument");
         if (c.DEFAULT_INSTRUMENT_NAME) defSel.value = c.DEFAULT_INSTRUMENT_NAME;
 
+        const ingSel = document.getElementById("cfg-default-ingestor");
+        ingSel.innerHTML = '<option value="">(none — use instrument default)</option>';
+        [...document.getElementById("ingestor").options].forEach(o => {
+          if (o.value) ingSel.appendChild(o.cloneNode(true));
+        });
+        ingSel.value = c.DEFAULT_INGESTOR || "";
+
         if (!configModal) configModal = new bootstrap.Modal(document.getElementById("config-modal"));
         configModal.show();
       } catch (e) {
@@ -1351,6 +1364,7 @@
         IS_SESSION: document.getElementById("cfg-is-session").value === "true",
         DEFAULT_BROWSE_DIR: document.getElementById("cfg-browse-dir").value.trim(),
         DEFAULT_INSTRUMENT_NAME: document.getElementById("cfg-default-instrument").value,
+        DEFAULT_INGESTOR: document.getElementById("cfg-default-ingestor").value,
         ACCEPTABLE_FILE_TYPES: cfgState.fileTypes,
         CHAIN_POST_PROCESSING: document.getElementById("cfg-chain-postproc").checked,
         PRINT_BARCODE_ENABLED: document.getElementById("cfg-print-barcode").checked,

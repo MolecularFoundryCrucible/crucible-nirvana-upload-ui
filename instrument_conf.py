@@ -6,6 +6,7 @@ DEFAULT_BROWSE_DIR = '/home/timko/Documents'
 # False = pick one or more files; each becomes its own standalone dataset (or insitu, per instrument)
 IS_SESSION = False
 DEFAULT_INSTRUMENT_NAME = 'nirvana'
+DEFAULT_INGESTOR = ''
 
 # True  = run an instrument's post-processing requests sequentially; each depends on
 #         the previous succeeding (a failure halts the rest).

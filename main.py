@@ -89,6 +89,7 @@ def get_instruments():
     return jsonify({
         "instruments": registry.INSTRUMENTS,
         "default": conf.DEFAULT_INSTRUMENT_NAME,
+        "default_ingestor": conf.DEFAULT_INGESTOR,
         "is_session": conf.IS_SESSION,
         "ui_modes": registry.INSTRUMENT_UI_MODE,
         "holder_layouts": registry.INSTRUMENT_HOLDER_LAYOUTS,
@@ -134,6 +135,7 @@ EDITABLE_FIELDS = {
     "DEFAULT_BROWSE_DIR": "str",
     "IS_SESSION": "bool",
     "DEFAULT_INSTRUMENT_NAME": "str",
+    "DEFAULT_INGESTOR": "str",
     "CHAIN_POST_PROCESSING": "bool",
     "PRINT_BARCODE_ENABLED": "bool",
     "ACCEPTABLE_FILE_TYPES": "set_str",
