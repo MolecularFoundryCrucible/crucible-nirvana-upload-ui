@@ -95,6 +95,7 @@ def get_instruments():
         "holder_layouts": registry.INSTRUMENT_HOLDER_LAYOUTS,
         "default_holder_layouts": registry.DEFAULT_HOLDER_LAYOUTS,
         "default_ingestors": registry.INSTRUMENT_INGESTORS,
+        "instrument_session_modes": registry.INSTRUMENT_SESSION_MODES,
     })
 
 
@@ -359,7 +360,9 @@ def do_upload():
     kw_list = data.get("keywords", []) or extract_keywords(comments, instrument_name)
 
     # Non-session mode: caller sends a list of file paths; session mode: a single folder path.
-    if conf.IS_SESSION:
+    # Per-instrument IS_SESSION overrides the global config default.
+    is_session = registry.INSTRUMENT_SESSION_MODES.get(instrument_name, conf.IS_SESSION)
+    if is_session:
         session_folder_path = (data.get("session_folder_path") or "").strip()
         if not session_folder_path:
             return jsonify({"error": "Missing field: session_folder_path"}), 400
@@ -370,7 +373,7 @@ def do_upload():
 
     from prefect.deployments import run_deployment
 
-    if conf.IS_SESSION:
+    if is_session:
         # Session mode — existing behavior. Create parent session record sync so
         # the UI can show the Crucible link + QR before the flow runs.
         deployment_name = registry.INSTRUMENT_FLOWS.get(instrument_name)
