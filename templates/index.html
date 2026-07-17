@@ -1011,6 +1011,7 @@
         if (resolved) {
           _maAssignments.forEach(fileObj => {
             fileObj.samples = resolved.samples.map(s => ({...s}));
+            fileObj.source = 'holders';
           });
           _buildNirvanaTabs();
         }
@@ -1045,7 +1046,7 @@
           showStatus(data.error || "Failed to parse h5 files.", "danger");
           return;
         }
-        _maAssignments = data.files;
+        _maAssignments = data.files.map(f => ({...f, source: 'file'}));
         _buildNirvanaTabs();
       } catch (e) {
         showStatus("Parse error: " + e.message, "danger");
@@ -1156,6 +1157,7 @@
         file: fileObj.path,
         sample_uuids: fileObj.samples.filter(s => !s.excluded).map(s => s.uuid).filter(Boolean),
         excluded_uuids: fileObj.samples.filter(s => s.excluded).map(s => s.uuid).filter(Boolean),
+        link_samples: fileObj.source === 'holders',
       }));
 
       const payload = {

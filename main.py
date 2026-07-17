@@ -548,6 +548,7 @@ def multi_assignment_upload():
         file_path = item.get("file", "")
         sample_uuids = item.get("sample_uuids") or []
         excluded_uuids = item.get("excluded_uuids") or []
+        link_samples = bool(item.get("link_samples", False))
         if not file_path:
             continue
         try:
@@ -558,6 +559,7 @@ def multi_assignment_upload():
                     "file": file_path,
                     "sample_uuids": sample_uuids,
                     "excluded_uuids": excluded_uuids,
+                    "link_samples": link_samples,
                     "project_id": project_id,
                     "orcid": orcid,
                     "instrument_name": instrument_name,

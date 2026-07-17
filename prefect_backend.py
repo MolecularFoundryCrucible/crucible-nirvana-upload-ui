@@ -627,7 +627,8 @@ def multi_assignment_upload(file: str,
                    kw_list: list[str] = [],
                    comments: str | None = None,
                    ingestor: str | None = None,
-                   excluded_uuids: list[str] = []) -> str:
+                   excluded_uuids: list[str] = [],
+                   link_samples: bool = False) -> str:
     from instruments.registry import POST_PROCESSING_REQUESTS
     from instrument_conf import CHAIN_POST_PROCESSING
     logger = get_run_logger()
@@ -641,8 +642,9 @@ def multi_assignment_upload(file: str,
                               comments=comments,
                               ingestor=ingestor,
                               excluded_uuids=excluded_uuids)
-    link_dataset_and_sample(new_dsid, sample_uuids)
-    logger.info(f"Linked {len(sample_uuids)} samples to dataset {new_dsid}")
+    if link_samples and sample_uuids:
+        link_dataset_and_sample(new_dsid, sample_uuids)
+        logger.info(f"Linked {len(sample_uuids)} samples to dataset {new_dsid}")
 
     requests = POST_PROCESSING_REQUESTS.get(instrument_name, [])
     if CHAIN_POST_PROCESSING:
