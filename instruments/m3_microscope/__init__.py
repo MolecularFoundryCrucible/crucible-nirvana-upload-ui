@@ -1,9 +1,9 @@
-NAME = 'shg_microscope'
+NAME = 'm3_microscope'
 INGESTOR = ''
 UI_MODE = 'standard'
 HOLDER_LAYOUTS = {}
 DEFAULT_HOLDER_LAYOUT = ''
-FLOW = None
+FLOW = 'session-upload/session-upload'
 POST_PROCESSING = []
 PANEL_TEMPLATE = None
 FILE_PARSER = None
