@@ -1305,7 +1305,7 @@
         const c = await res.json();
         if (!res.ok) { alert(c.error || "Failed to load config"); return; }
 
-        document.getElementById("cfg-is-session").value = c.IS_SESSION ? "true" : "false";
+        document.getElementById("cfg-is-session").value = state.isSession ? "true" : "false";
         document.getElementById("cfg-browse-dir").value = c.DEFAULT_BROWSE_DIR || "";
         document.getElementById("cfg-chain-postproc").checked = !!c.CHAIN_POST_PROCESSING;
         document.getElementById("cfg-print-barcode").checked = !!c.PRINT_BARCODE_ENABLED;
