@@ -1,0 +1,10 @@
+NAME = 'titanx'
+INGESTOR = ''
+UI_MODE = 'standard'
+HOLDER_LAYOUTS = {}
+DEFAULT_HOLDER_LAYOUT = ''
+IS_SESSION = True
+FLOW = 'session-upload/session-upload'
+POST_PROCESSING = []
+PANEL_TEMPLATE = None
+FILE_PARSER = None

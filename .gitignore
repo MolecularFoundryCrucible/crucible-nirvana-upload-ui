@@ -21,7 +21,6 @@ serve_flows.log
 # other
 .DS_Store
 mf-crucible-*.json
-rclone/**
 *.code-workspace
 *.txy
 *_instrument_conf.py

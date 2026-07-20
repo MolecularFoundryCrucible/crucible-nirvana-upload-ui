@@ -38,30 +38,6 @@ def run_shell(cmd: str, checkflag: bool = True, background: bool = False) -> sp.
     return sp.run(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True, universal_newlines=True, check=checkflag)
 
 
-def run_rclone_command(source_path: str = "", destination_path: str = "", cmd: str = "copy",
-                       background: bool = False, checkflag: bool = True, dry_run = False) -> sp.CompletedProcess | sp.Popen:
-    if len(destination_path.strip()) > 0:
-        destination_path = f'"{destination_path}"'
-    
-    source_path, destination_path = (x.replace(":gcs", "") for x in (source_path, destination_path))
-    
-    rclone_cmd = f'rclone {cmd} "{source_path}" {destination_path}'
-
-    # Dry run first — check both exit code and output for errors
-    if dry_run:
-        dry_run = run_shell(f'{rclone_cmd} --dry-run', background=False, checkflag=False)
-        if dry_run.returncode != 0 or "ERROR" in (dry_run.stdout or "").upper():
-            msg = (
-                f"rclone dry run failed. Please check your rclone configuration "
-                f"with `rclone config`.\n{dry_run.stdout or ''}"
-            )
-            logger.error(msg)
-            raise RuntimeError(msg)
-
-    # Real copy
-    logger.info(f'copying file {source_path=} to {destination_path=}')
-    return run_shell(rclone_cmd, background=background, checkflag=checkflag)
-
 
 _ORCID_RE = re.compile(r'^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$')
 
@@ -321,19 +297,6 @@ def identify_session_files(session_folder_path: str) -> list[str]:
     ]
 
 
-@task(retries=3, retry_delay_seconds=10)
-def copy_all_files_to_gdrive(session_folder_path: str, instrument_name: str) -> None:
-    logger = get_run_logger()
-    p = Path(session_folder_path)
-    relative_folder_path = p.relative_to(p.anchor).as_posix()
-    dest = f"{instrument_name}-gdrive:/crucible-uploads/{instrument_name}/{relative_folder_path}"
-    logger.info(f'Copying {session_folder_path} to {dest}')
-    
-    try:
-        run_rclone_command(session_folder_path, dest, 'copy', background=True)
-    except Exception as e:
-        logger.error(f'rclone copy for {session_folder_path} to google drive failed with error {e}')
-
 
 def _compute_sha256(file_path: str) -> str:
     import hashlib
@@ -354,7 +317,8 @@ def create_dataset(files: list[str],
                    dsid: str | None = None,
                    kw_list: list[str] = [],
                    comments: str | None = None,
-                   ingestor: str | None = None) -> str:
+                   ingestor: str | None = None,
+                   excluded_uuids: list[str] = []) -> str:
     logger = get_run_logger()
 
     ds_kwargs = {k: v for k, v in dict(
@@ -366,6 +330,8 @@ def create_dataset(files: list[str],
     ).items() if v is not None}
     ds = BaseDataset(**ds_kwargs)
     scimd = {'comments': comments} if comments else {}
+    if excluded_uuids:
+        scimd['skipped thin films'] = excluded_uuids
     try:
         new_ds = client.datasets.create(
             ds,
@@ -408,42 +374,46 @@ def link_dataset_and_sample(new_ds_dsid: str, sample_unique_id: str | list[str] 
     return len(uuids)
 
 def list_ingestors() -> list[str]:
-    return client.ingestions.list_ingestors()
+    raw = client.ingestions.list_ingestors() or []
+    result = []
+    for item in raw:
+        for name in str(item).split(','):
+            name = name.strip()
+            if name:
+                result.append(name)
+    return result
 
 
-def resolve_holders(instrument: str, holder_uuids: list[str]) -> list[dict]:
-    """Fetch child samples for each holder UUID and return grid-ready data.
-
-    Layout (number of holders, slots per holder, labels) comes from
-    INSTRUMENT_HOLDER_LAYOUT in instrument_conf.  When Crucible gains a layout
-    metadata field on holder samples, read it via
-        client.samples.get(uuid, include_metadata=True)['scientific_metadata']
-    and use these config values as a fallback.
-    """
-    from instrument_conf import INSTRUMENT_HOLDER_LAYOUT
-    layout = INSTRUMENT_HOLDER_LAYOUT.get(instrument, [])
-    results = []
+def resolve_holders(instrument: str, holder_uuids: list[str], layout_name: str = '') -> list[dict]:
+    """Fetch child samples for each holder UUID and return a single merged grid entry."""
+    from instruments.registry import INSTRUMENT_HOLDER_LAYOUTS
+    layouts = INSTRUMENT_HOLDER_LAYOUTS.get(instrument, {})
+    layout = layouts.get(layout_name) or next(iter(layouts.values()), [])
+    all_samples = []
+    labels = []
+    pos = 1
     for i, uuid in enumerate(holder_uuids):
         if not uuid:
             continue
         holder_cfg = layout[i] if i < len(layout) else {}
-        label = holder_cfg.get('label', f'Holder {i + 1}')
+        labels.append(holder_cfg.get('label', f'Holder {i + 1}'))
         slots = holder_cfg.get('slots', 8)
-        children = client.samples.list_children(uuid)
-        samples = []
+        children = sorted(client.samples.list_children(uuid), key=lambda c: c.get('sample_name', ''))
         for j in range(slots):
             if j < len(children):
                 c = children[j]
-                samples.append({
-                    'position': f'S{j + 1:02d}',
+                all_samples.append({
+                    'position': f'S{pos:02d}',
                     'name': c.get('sample_name') or '',
                     'uuid': c.get('unique_id') or '',
                     'excluded': False,
                 })
             else:
-                samples.append({'position': f'S{j + 1:02d}', 'name': '', 'uuid': '', 'excluded': False})
-        results.append({'basename': label, 'file': uuid, 'samples': samples})
-    return results
+                all_samples.append({'position': f'S{pos:02d}', 'name': '', 'uuid': '', 'excluded': False})
+            pos += 1
+    basename = ' + '.join(labels) if labels else 'Holders'
+    file_key = ','.join(u for u in holder_uuids if u)
+    return [{'basename': basename, 'file': file_key, 'samples': all_samples}]
 
 
 @task(retries=3, retry_delay_seconds=5)
@@ -479,7 +449,8 @@ def upload_dataset(files: list,
                    kw_list: list[str] = [],
                    comments: str | None = None,
                    ingestor: str | None = None) -> str:
-    from instrument_conf import POST_PROCESSING_REQUESTS, CHAIN_POST_PROCESSING
+    from instruments.registry import POST_PROCESSING_REQUESTS
+    from instrument_conf import CHAIN_POST_PROCESSING
 
     new_ds_dsid = create_dataset(files=files,
                                  instrument_name=instrument_name,
@@ -521,8 +492,6 @@ def session_upload(file: str, instrument_name: str, project_id: str, orcid: str,
     session_folder_path = file
 
     check_session_depth(session_folder_path)
-
-    copy_all_files_to_gdrive(session_folder_path, instrument_name)
 
     session_name, session_dsid = create_session(
         session_folder_path, kw_list, comments or "",
@@ -657,8 +626,11 @@ def multi_assignment_upload(file: str,
                    dsid: str | None = None,
                    kw_list: list[str] = [],
                    comments: str | None = None,
-                   ingestor: str | None = None) -> str:
-    from instrument_conf import POST_PROCESSING_REQUESTS, CHAIN_POST_PROCESSING
+                   ingestor: str | None = None,
+                   excluded_uuids: list[str] = [],
+                   link_samples: bool = False) -> str:
+    from instruments.registry import POST_PROCESSING_REQUESTS
+    from instrument_conf import CHAIN_POST_PROCESSING
     logger = get_run_logger()
 
     new_dsid = create_dataset(files=[file],
@@ -668,9 +640,11 @@ def multi_assignment_upload(file: str,
                               dsid=dsid,
                               kw_list=kw_list,
                               comments=comments,
-                              ingestor=ingestor)
-    link_dataset_and_sample(new_dsid, sample_uuids)
-    logger.info(f"Linked {len(sample_uuids)} samples to dataset {new_dsid}")
+                              ingestor=ingestor,
+                              excluded_uuids=excluded_uuids)
+    if link_samples and sample_uuids:
+        link_dataset_and_sample(new_dsid, sample_uuids)
+        logger.info(f"Linked {len(sample_uuids)} samples to dataset {new_dsid}")
 
     requests = POST_PROCESSING_REQUESTS.get(instrument_name, [])
     if CHAIN_POST_PROCESSING:
